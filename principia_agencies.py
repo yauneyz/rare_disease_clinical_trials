@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# coding: utf-8
-
+# coding: utf-8 
 
 
 import xml.etree.ElementTree as ET
@@ -17,14 +16,15 @@ from tqdm.notebook import tqdm, trange
 # Trial class that represents all the relevant data from one trial
 # The constructor takes all of the relevant data, defaulting empty fields to null
 class Trial:
-    def __init__(self,disease=None,number=None,sponsor=None,phase=None,study_type=None,url=None):
+    def __init__(self,disease=None,number=None,sponsor=None,phase=None,study_type=None,url=None,date=None):
         self.disease=disease
         self.number=number
         self.sponsor=sponsor
         self.phase=phase
         self.study_type=study_type
         self.url = url
-        self.fields = ["disease","number","sponsor","phase","study_type", "url"]
+        self.date = date
+        self.fields = ["disease","number","sponsor", "date","phase","study_type", "url"]
         
         # This is the list of cancers that 
     
@@ -79,9 +79,15 @@ def parse_file(filename):
                 
             # URL
             if tree.find('required_header') is not None and tree.find('required_header').find('url') is not None:
-                url =tree.find('required_header').find('url').text
+                url = tree.find('required_header').find('url').text
             else:
                 url = None
+                
+            # Date
+            if tree.find('start_date') is not None:
+                date = tree.find('start_date').text
+            else:
+                date = None
                 
         except Exception as e:
             print("Unable to parse file: ",filename, e)
@@ -92,7 +98,8 @@ def parse_file(filename):
             study_type=study_type,
             number=nct_id,
             phase=phase,
-            url=url
+            url=url,
+            date=date
         )
         
 # Loops through all of the files in the directory and creates a spreadsheet with all of their data
@@ -105,10 +112,8 @@ def parse_directory(directory):
     # The cancers are in the first column
     cancers = pd.read_csv('rare_cancers.csv').iloc[:,0].to_numpy()
 
-    # Make them all lowercase
+    # Make them all lowercasec
     cancers = [c.lower() for c in cancers]
-    
-    fields = ["disease","number","sponsor","phase","study_type"]
     
     # Change directory to set up glob
     old_dir = os.getcwd()
@@ -124,9 +129,10 @@ def parse_directory(directory):
         bars = 0
         size = len(file_list)
         for i in range(size):
+            if i > (bars+1):
+                bar.next()
             trials.append(parse_file(file_list[i]))
-            bar.next()
-    
+            
     # Change directory back for output
     os.chdir(old_dir)
     
@@ -136,7 +142,7 @@ def parse_directory(directory):
         writer = csv.writer(output)
         
         # Write the headers:
-        headers = ["Disease","Number","Sponsor","Phase","Study Type", "URL"]
+        headers = ["Disease","Number","Sponsor","Date","Phase","Study Type", "URL"]
         writer.writerow(headers)
         
         # Write the data
